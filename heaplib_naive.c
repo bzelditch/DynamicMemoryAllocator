@@ -33,28 +33,40 @@ void print_heap(heap_header_t *heap) {
 
 int hl_init(void *heapptr, unsigned int heap_size) {
 
-	heap_header_t *heap = (heap_header_t *)heapptr;
+	//Note:  heap_size must be large enough to contain the header
+
+	heap_header_t *heap = (heap_header_t *)heapptr; //cast the void pointer to a pointer to a heap_header_t
 	
-	heap->size = heap_size;
-	heap->next_free = ADD_BYTES(heap, sizeof(heap_header_t));
-	heap->bytes_free = heap_size - sizeof(heap_header_t);
+	heap->size = heap_size; //set the size of the heap
+	heap->next_free = ADD_BYTES(heap, sizeof(heap_header_t)); //gets us a pointer to the start of the actual heap
+	heap->bytes_free = heap_size - sizeof(heap_header_t); //if this is <0 then there's a problem
 	
     #ifdef PRINT_DEBUG
         print_heap(heap);
     #endif
 
    	
-	return 1; // Success!
+	if(heap->bytes_free < 0){
+		return 0;
+	}
+ 
+    return 1;
 
 }
 
 void *hl_alloc(void *heapptr, unsigned int block_size) {
 
-	heap_header_t *heap = (heap_header_t *)heapptr;
-	void *blockptr = heap->next_free;
+	//Note:  if block_size > bytes_free then we got a problem
+
+	heap_header_t *heap = (heap_header_t *)heapptr; //cast the void pointer to a heap_header_t pointer
+	void *blockptr = heap->next_free; //point to the next free block
 	
-	heap->next_free = heap->next_free + block_size;
-	heap->bytes_free = heap->bytes_free - block_size;
+	heap->next_free = heap->next_free + block_size; //after allocating the memory, set the next_free to the next block of memory
+	heap->bytes_free = heap->bytes_free - block_size; //subtract block_size bytes from the available free memory
+
+	if(heap->bytes_free < 0){
+		return 0;
+	}
 	
 	return blockptr; // Success!
 	
