@@ -14,7 +14,6 @@
 int num_tests = 0;
 
 int resize_copies_values() {
-
 	char heap[DECENT_HEAP_SIZE]; 
 	char *letters, *new_letters;
 	
@@ -40,14 +39,12 @@ int resize_copies_values() {
 	
 	printf("\t\t\tFAIL\n"); 
 	return FAIL;
-	
 }
 
 /* Note: this test may or may not be robust. Take a look and determine
  * whether it thoroughly tests what it is trying to test.
  */
 int alloc_ptr_aligned() {
-
 	char array[DECENT_HEAP_SIZE]; 
 	void *block;
 	bool aligned_f = false;
@@ -77,7 +74,76 @@ int alloc_ptr_aligned() {
 	
 	printf("\tFAIL\n"); 
 	return FAIL;
+}
+
+/**
+ * Test for failures in incorrect malloc call
+ */
+int test() {
+	char array[DECENT_HEAP_SIZE]; 
+	void *block;
+	bool aligned_f = false;
+
+	num_tests++; // begin each test by incrementing this counter
+
+	hl_init(&array, DECENT_HEAP_SIZE - 1);
 	
+	block = hl_alloc(&array, 11);
+
+	// you may find this helpful. feel free to remove
+    #ifdef PRINT_DEBUG
+    	printf("blockptr = %16lx\n", (unsigned long)block);
+    	printf("mask =     %16lx\n", (unsigned long)(ALIGNMENT -1));
+    	printf("---------------------------\n");
+    	printf("ANDED =    %16lx\n", (unsigned long)block & (ALIGNMENT - 1));
+    	printf("!ANDED (ALIGNED) =   %6d\n", !((unsigned long)block & (ALIGNMENT - 1)));
+    #endif
+
+	aligned_f = !((unsigned long)block & (ALIGNMENT - 1));
+
+	printf("%d) hl_alloc return ptr has correct alignment?", num_tests); 
+	if (aligned_f) {
+		printf("\tPASS\n");
+		return SUCCESS;
+	}
+	
+	printf("\tFAIL\n"); 
+	return FAIL;
+}
+
+/**
+ * Test for failures in incorrect init call
+ */
+int test2() {
+	char array[DECENT_HEAP_SIZE]; 
+	void *block;
+	bool aligned_f = false;
+
+	num_tests++; // begin each test by incrementing this counter
+
+	hl_init(&array, DECENT_HEAP_SIZE - 1);
+	
+	block = hl_alloc(&array, 11);
+
+	// you may find this helpful. feel free to remove
+    #ifdef PRINT_DEBUG
+    	printf("blockptr = %16lx\n", (unsigned long)block);
+    	printf("mask =     %16lx\n", (unsigned long)(ALIGNMENT -1));
+    	printf("---------------------------\n");
+    	printf("ANDED =    %16lx\n", (unsigned long)block & (ALIGNMENT - 1));
+    	printf("!ANDED (ALIGNED) =   %6d\n", !((unsigned long)block & (ALIGNMENT - 1)));
+    #endif
+
+	aligned_f = !((unsigned long)block & (ALIGNMENT - 1));
+
+	printf("%d) hl_alloc return ptr has correct alignment?", num_tests); 
+	if (aligned_f) {
+		printf("\tPASS\n");
+		return SUCCESS;
+	}
+	
+	printf("\tFAIL\n"); 
+	return FAIL;
 }
 
 int main() {
