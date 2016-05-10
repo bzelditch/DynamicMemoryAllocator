@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 #include "heaplib.h"
 
@@ -33,38 +34,45 @@ void print_heap(heap_header_t *heap) {
 
 int hl_init(void *heapptr, unsigned int heap_size) {
 
-	//Note:  heap_size must be large enough to contain the header
+	heap_header_t *heap = (heap_header_t *)heapptr;
 
-	heap_header_t *heap = (heap_header_t *)heapptr; //cast the void pointer to a pointer to a heap_header_t
+	//cast to int* and then use & to get: &(*int)
+
+	if((*(int *)heap) % (ALIGNMENT) != 0){ //if the heapptr is not aligned properly, align it
+
+		heap = (heap_header_t *)((char *)heap + ALIGNMENT - (*(int*)heap) % ALIGNMENT);
+	}
 	
-	heap->size = heap_size; //set the size of the heap
-	heap->next_free = ADD_BYTES(heap, sizeof(heap_header_t)); //gets us a pointer to the start of the actual heap
-	heap->bytes_free = heap_size - sizeof(heap_header_t); //if this is <0 then there's a problem
+	heap->size = heap_size;
+	heap->next_free = ADD_BYTES(heap, sizeof(heap_header_t));
+	heap->bytes_free = heap_size - sizeof(heap_header_t);
 	
     #ifdef PRINT_DEBUG
         print_heap(heap);
     #endif
 
+    if(heap->bytes_free > 0){
+    	return 1;
+    }
+
    	
-	if(heap->bytes_free < 0){
-		return 0;
-	}
- 
-    return 1;
+	return 0; // Success!
 
 }
 
 void *hl_alloc(void *heapptr, unsigned int block_size) {
 
-	//Note:  if block_size > bytes_free then we got a problem
+	heap_header_t *heap = (heap_header_t *)heapptr;
+	void *blockptr = heap->next_free;
 
-	heap_header_t *heap = (heap_header_t *)heapptr; //cast the void pointer to a heap_header_t pointer
-	void *blockptr = heap->next_free; //point to the next free block
+	if(*(int*)blockptr % ALIGNMENT != 0){
+		blockptr = (char*)blockptr + ALIGNMENT - (ALIGNMENT - (*(int*)blockptr % ALIGNMENT)); 
+	}
 	
-	heap->next_free = heap->next_free + block_size; //after allocating the memory, set the next_free to the next block of memory
-	heap->bytes_free = heap->bytes_free - block_size; //subtract block_size bytes from the available free memory
+	heap->next_free = heap->next_free + block_size;
+	heap->bytes_free = heap->bytes_free - block_size;
 
-	if(heap->bytes_free < 0){
+	if (heap->bytes_free < block_size){
 		return 0;
 	}
 	
@@ -78,7 +86,15 @@ void hl_release(void *heapptr, void *blockptr) {
 
 void *hl_resize(void *heapptr, void *blockptr, unsigned int new_block_size) {
 
-	return hl_alloc(heapptr, new_block_size);
+	void* newblockptr =  hl_alloc(heapptr, new_block_size);
+
+	if(*(int *)blockptr != *(int *)newblockptr){
+		newblockptr = memcpy(newblockptr, blockptr, *(int *)newblockptr - *(int *)blockptr);
+
+	}
+
+	return newblockptr;
+
 
 }
 
