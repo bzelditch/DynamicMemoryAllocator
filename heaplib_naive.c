@@ -68,6 +68,10 @@ void *hl_alloc(void *heapptr, unsigned int block_size) {
 	if(*(int*)blockptr % ALIGNMENT != 0){
 		blockptr = (char*)blockptr + ALIGNMENT - (ALIGNMENT - (*(int*)blockptr % ALIGNMENT)); 
 	}
+
+	if((int)block_size % ALIGNMENT != 0){
+		block_size += (unsigned int)(ALIGNMENT - (ALIGNMENT - ((int)block_size % ALIGNMENT)));
+	}
 	
 	heap->next_free = heap->next_free + block_size;
 	heap->bytes_free = heap->bytes_free - block_size;
