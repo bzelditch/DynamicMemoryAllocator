@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include "heaplib.h"
 
+#define ADD_BYTES(base_addr, num_bytes) (((char *)(base_addr)) + (num_bytes))
+
 /*
  * Include a description of your approach here.
  *
@@ -26,7 +28,26 @@ typedef struct alloc_block_header {
  */
 int hl_init(void *heapptr, unsigned int heap_size) {
 //
-  	return 0; // Failed
+  	heap_header *heap = (heap_header *)heapptr; //set initial pointer to the heap_header
+
+    if((*(int *)heap) % ALIGNMENT != 0){ //if the heap pointer is not aligned properly
+                                         //then align it
+      heap = (heap_header *)((char *)heap + ALIGNMENT - (*(int*)heap) % ALIGNMENT);
+    }
+
+    heap->size = heap_size; //set the size of the entire heap
+    heap->first_free = ADD_BYTES(heap, sizeof(heap_header)); //point to the first free block
+
+    if(heap_size < sizeof(heap_header)){
+      return 0;
+    }
+
+    free_block_header *root = (free_block_header *)heap->first_free; //set the root of the linkedlist
+    root->size = 0; //set the size of the initial root to 0
+    root->next_free = NULL; //set the next_free pointer to NULL
+
+
+    return 1;
 
 }
 
@@ -55,6 +76,9 @@ void *hl_alloc(void *heapptr, unsigned int block_size) {
   		header = (free_block_header *)header->next_free;
   	}
   	return NULL; // Failed
+
+    //NOTE: Probably need to include an alloc_header in this function
+    //Also, check the alignment
 }
 
 /* Releases the block of previously allocated memory pointed to by blockptr.
