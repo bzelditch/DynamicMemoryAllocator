@@ -18,11 +18,12 @@ typedef struct heap_header {
 typedef struct free_block_header {
 	unsigned int size;
 	char* next_free;
+	char* prev_free;
 } free_block_header;
 
-typedef struct alloc_block_header {
+typedef struct block_header {
 	unsigned int size;
-} alloc_block_header;
+} block_header;
 
 /* Sets up a new heap.  'heapptr' points to a chunk of memory (i.e. the heap)
  * of size 'heap_size' bytes.  Returns 0 if setup fails, nonzero if success.
@@ -44,12 +45,12 @@ int hl_init(void *heapptr, unsigned int heap_size) {
     }
 
     free_block_header *root = (free_block_header *)heap->first_free; //set the root of the linkedlist
-    root->size = heap_size - sizeof(heap_header);
+    root->size = heap_size + sizeof(free_block_header) + sizeof(heap_header);
     root->next_free = NULL; //set the next_free pointer to NULL
+    root->prev_free = NULL;
 
-    free_block_header *end_header = (free_block_header *)ADD_BYTES(root, root->size - 2);
-    end_header->size = heap_size - sizeof(heap_header);
-    end_header->next_free = NULL; //set the next_free pointer to NULL
+    block_header *end_header = (block_header *)ADD_BYTES(root, root->size - 4);
+    end_header->size = heap_size;
 
     return 1;
 
@@ -60,34 +61,51 @@ int hl_init(void *heapptr, unsigned int heap_size) {
  * if the allocator cannot satisfy the request.
  */
 void *hl_alloc(void *heapptr, unsigned int block_size) {
-  	if(block_size < 0){
-  		return NULL;
+	//8 byte aligned block size
+  	if(block_size < 0 || block_size < 2*sizeof(block_header)){
+  		return 0;
   	}
   	heap_header *head = (heap_header *)heapptr;
   	char *first = head->first_free;
   	free_block_header *header = (free_block_header *)first;
-  	unsigned int total_size = block_size + sizeof(alloc_block_header);
+  	unsigned int total_size = block_size + 2*sizeof(block_header);
   	do{
 		if (header->size >= total_size){
-			void* back_pointer = (void *)ADD_BYTES(header, header->size);
-			free_block_header *back_header = (free_block_header *)back_pointer;
-			void* prev = back_header->next_free;
+			//void* back_pointer = (void *)ADD_BYTES(header, 8);
+			//free_block_header *back_header = (free_block_header *)back_pointer;
+			//void* prev = back_header->prev_free;
+			void* prev = header->prev_free;
 			free_block_header *prev_header = (free_block_header *)prev;
 
 			free_block_header *next_header = (free_block_header *)header->next_free;
-			void* next_back_pointer = (void *)ADD_BYTES(next_header, next_header->size);
-			free_block_header *next_back_header = (free_block_header *)next_back_pointer;
+			//void* next_back_pointer = next_header->prev_free;
+			//void* next_back_pointer = (void *)ADD_BYTES(next_header, 8);
+			//free_block_header *next_back_header = (free_block_header *)next_back_pointer;
 
   			if (header->size == total_size){
-  				next_back_header->next_free = back_header->next_free;
+  				next_header->prev_free = header->prev_free;
   				prev_header->next_free = header->next_free;
 
   				//change free pointers for pointers in front of and behind
 			}
 			else{
-				header->size = header->size - total_size;
+				void* shifted = (void *)ADD_BYTES(header, total_size);
+				free_block_header *new_header = (free_block_header *)shifted;
+				new_header->size = header->size - total_size;
+				new_header->next_free = header->next_free;
+				new_header->prev_free = header->prev_free;
 
-				//change free pointers for pointers in front of and behind
+				block_header *new_back_header = (block_header *)ADD_BYTES(header, header->size - 4);
+				new_back_header->size = header->size - total_size;
+
+				block_header *new_alloc_front_header = (block_header *)header;
+				new_alloc_front_header->size = total_size + 1;
+
+				block_header *new_alloc_back_header = (block_header *)ADD_BYTES(header, total_size - 4);
+				new_alloc_back_header->size = total_size + 1;
+
+				next_header->prev_free = shifted;
+  				prev_header->next_free = shifted;
 			}
 			return (void *)header;
 		}
@@ -118,7 +136,7 @@ void hl_release(void *heapptr, void *blockptr) {
  * behave like alloc().
  */
 void *hl_resize(void *heapptr, void *blockptr, unsigned int new_block_size) {
-	alloc_block_header *old_block = (alloc_block_header *)blockptr;
+	block_header *old_block = (block_header *)blockptr;
   	if(new_block_size <= 0){
   		return NULL;
  	}
