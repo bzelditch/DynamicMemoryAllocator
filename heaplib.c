@@ -7,15 +7,19 @@
  *
  */
 
-typedef struct heap_header_t {
+typedef struct heap_header {
 	unsigned int size;
 	char *first_free;
-} heap_header_t ;
+} heap_header ;
 
-typedef struct node {
+typedef struct free_block_header {
 	unsigned int size;
 	char* next_free;
-} node;
+} free_block_header;
+
+typedef struct alloc_block_header {
+	unsigned int size;
+} alloc_block_header;
 
 /* Sets up a new heap.  'heapptr' points to a chunk of memory (i.e. the heap)
  * of size 'heap_size' bytes.  Returns 0 if setup fails, nonzero if success.
@@ -31,19 +35,25 @@ int hl_init(void *heapptr, unsigned int heap_size) {
  * if the allocator cannot satisfy the request.
  */
 void *hl_alloc(void *heapptr, unsigned int block_size) {
-  	if(block_size <= 0){
+  	if(block_size < 0){
   		return NULL;
   	}
-  	heap_header_t *head = (heap_header_t *)heapptr;
-  	char *current = head->first_free;
-  	node *header = (node *)current;
+  	heap_header *head = (heap_header *)heapptr;
+  	char *first = head->first_free;
+  	free_block_header *header = (free_block_header *)first;
   	while (header->next_free != NULL){
   		if (header->size >= block_size){
-  			return (void *)header;
-  		}
-  		header = (node *)header->next_free;
-  	}
+  			if (header->size == block_size){
+  				//change free pointers for pointers in front of and behind
 
+  			}
+  			else{
+  				header->size = header->size - sizeof(alloc_block_header) - block_size;
+  				return (void *)header;
+  			}
+  		}
+  		header = (free_block_header *)header->next_free;
+  	}
   	return NULL; // Failed
 }
 
