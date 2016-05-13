@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include "heaplib.h"
 
 #define ADD_BYTES(base_addr, num_bytes) (((char *)(base_addr)) + (num_bytes))
@@ -62,19 +63,33 @@ void *hl_alloc(void *heapptr, unsigned int block_size) {
   	heap_header *head = (heap_header *)heapptr;
   	char *first = head->first_free;
   	free_block_header *header = (free_block_header *)first;
-  	while (header->next_free != NULL){
-  		if (header->size >= block_size){
-  			if (header->size == block_size){
-  				//change free pointers for pointers in front of and behind
+  	unsigned int total_size = block_size + sizeof(alloc_block_header);
+  	do{
+		if (header->size >= total_size){
+			void* back_pointer = (void *)header + header->size;
+			free_block_header *back_header = (free_block_header *)back_pointer;
+			void* prev = back_header->next_free;
+			free_block_header *prev_header = (free_block_header *)prev;
 
-  			}
-  			else{
-  				header->size = header->size - sizeof(alloc_block_header) - block_size;
-  				return (void *)header;
-  			}
-  		}
-  		header = (free_block_header *)header->next_free;
-  	}
+			free_block_header *next_header = (free_block_header *)header->next_free;
+			void* next_back_pointer = (void *)next_header + next_header->size;
+			free_block_header *next_back_header = (free_block_header *)next_back_pointer;
+
+  			if (header->size == total_size){
+  				next_back_header->next_free = back_header->next_free;
+  				prev_header->next_free = header->next_free;
+
+  				//change free pointers for pointers in front of and behind
+			}
+			else{
+				header->size = header->size - total_size;
+				//change free pointers for pointers in front of and behind
+				return (void *)header;
+			}
+		}
+  		header = (free_block_header *)header->next_free;  		
+  	} while (header != NULL);
+ 
   	return NULL; // Failed
 
     //NOTE: Probably need to include an alloc_header in this function
@@ -95,13 +110,19 @@ void hl_release(void *heapptr, void *blockptr) {
 /* Changes the size of the memory block pointed to by blockptr,
  * returning a pointer to the new block, or 0 if the request cannot be
  * satisfied. The contents of the block should be preserved (even if
- * the location of the block changes).  If mem == 0, function should
+ * the location of the block changes).  If blockptr == 0, function should
  * behave like alloc().
  */
 void *hl_resize(void *heapptr, void *blockptr, unsigned int new_block_size) {
+	alloc_block_header *old_block = (alloc_block_header *)blockptr;
   	if(new_block_size <= 0){
   		return NULL;
  	}
-  	return NULL; // Failed
+ 	void *new_alloc = hl_alloc(heapptr, new_block_size);
+ 	if(blockptr == 0 || new_alloc == 0){
+ 		return new_alloc;
+ 	}
+ 	void *copied = memcpy(new_alloc, blockptr, old_block->size);
+ 	hl_release(heapptr, blockptr);
+  	return copied;
 }
-
