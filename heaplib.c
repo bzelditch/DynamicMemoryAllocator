@@ -44,9 +44,12 @@ int hl_init(void *heapptr, unsigned int heap_size) {
     }
 
     free_block_header *root = (free_block_header *)heap->first_free; //set the root of the linkedlist
-    root->size = 0; //set the size of the initial root to 0
+    root->size = heap_size - sizeof(heap_header);
     root->next_free = NULL; //set the next_free pointer to NULL
 
+    free_block_header *end_header = (free_block_header *)ADD_BYTES(root, root->size - 2);
+    end_header->size = heap_size - sizeof(heap_header);
+    end_header->next_free = NULL; //set the next_free pointer to NULL
 
     return 1;
 
@@ -66,13 +69,13 @@ void *hl_alloc(void *heapptr, unsigned int block_size) {
   	unsigned int total_size = block_size + sizeof(alloc_block_header);
   	do{
 		if (header->size >= total_size){
-			void* back_pointer = (void *)header + header->size;
+			void* back_pointer = (void *)ADD_BYTES(header, header->size);
 			free_block_header *back_header = (free_block_header *)back_pointer;
 			void* prev = back_header->next_free;
 			free_block_header *prev_header = (free_block_header *)prev;
 
 			free_block_header *next_header = (free_block_header *)header->next_free;
-			void* next_back_pointer = (void *)next_header + next_header->size;
+			void* next_back_pointer = (void *)ADD_BYTES(next_header, next_header->size);
 			free_block_header *next_back_header = (free_block_header *)next_back_pointer;
 
   			if (header->size == total_size){
@@ -83,9 +86,10 @@ void *hl_alloc(void *heapptr, unsigned int block_size) {
 			}
 			else{
 				header->size = header->size - total_size;
+
 				//change free pointers for pointers in front of and behind
-				return (void *)header;
 			}
+			return (void *)header;
 		}
   		header = (free_block_header *)header->next_free;  		
   	} while (header != NULL);
