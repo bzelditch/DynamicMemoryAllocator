@@ -19,11 +19,13 @@ int resize_copies_values() {
 	char *letters, *new_letters;
 	
 	num_tests++; // begin each test by incrementing this counter
-	
+	//printf("2\n");
 	hl_init(heap, DECENT_HEAP_SIZE);
+	//printf("1\n");
 	letters = (char *) hl_alloc(heap, 6 * sizeof(char));
-	
+	printf("wtf\n");
 	letters[0] = 'h';
+	printf("??\n");
 	letters[1] = 'e';
 	letters[2] = 'l';
 	letters[3] = 'l';
@@ -31,7 +33,7 @@ int resize_copies_values() {
 	letters[5] = '\0';
 	
 	new_letters = hl_resize(heap, letters, 20 * sizeof(char));
-	
+	printf("8\n");
 	printf("%d) Resize copies values?", num_tests); 
 	if (!strcmp(letters, new_letters)) {
 		printf("\t\t\tPASS\n");
