@@ -29,7 +29,6 @@ typedef struct block_header {
  * of size 'heap_size' bytes.  Returns 0 if setup fails, nonzero if success.
  */
 int hl_init(void *heapptr, unsigned int heap_size) {
-//
   	heap_header *heap = (heap_header *)heapptr; //set initial pointer to the heap_header
 
     if((*(int *)heap) % ALIGNMENT != 0){ //if the heap pointer is not aligned properly
@@ -85,8 +84,6 @@ void *hl_alloc(void *heapptr, unsigned int block_size) {
   			if (header->size == total_size){
   				next_header->prev_free = header->prev_free;
   				prev_header->next_free = header->next_free;
-
-  				//change free pointers for pointers in front of and behind
 			}
 			else{
 				void* shifted = (void *)ADD_BYTES(header, total_size);
@@ -112,7 +109,7 @@ void *hl_alloc(void *heapptr, unsigned int block_size) {
   		header = (free_block_header *)header->next_free;  		
   	} while (header != NULL);
  
-  	return NULL; // Failed
+  	return 0;
 
     //NOTE: Probably need to include an alloc_header in this function
     //Also, check the alignment
