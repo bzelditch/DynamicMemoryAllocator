@@ -178,7 +178,6 @@ void hl_release(void *heapptr, void *blockptr) {
 
 		//The total size of the newly freed, coalesced block
 		unsigned int total_free_size = *before_size_ptr + block_size + *after_size_ptr - 1;
->>>>>>> Commiting heaplib
 
 		//set the next_free pointer for the free block directly before blockptr
 		//don't need to change the prev_free pointer at all
