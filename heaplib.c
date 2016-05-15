@@ -135,7 +135,7 @@ void hl_release(void *heapptr, void *blockptr) {
 	unsigned int *before_size_ptr = (unsigned int *)ADD_BYTES(blockptr, -sizeof(unsigned int));
 
     //Should be true if not equivalent to 0 mod 2 and false otherwise
-	is_alloc_before = *(int *)before_size_ptr % 2;
+	is_alloc_before = *(int *)before_size_ptr % 2 == 0;
 
 	//Should point to the header of the next block
 	unsigned int* after_size_ptr = (unsigned int*)ADD_BYTES(blockptr, block_size);
@@ -143,16 +143,11 @@ void hl_release(void *heapptr, void *blockptr) {
 	//Same as above
 	is_alloc_after = *(int *)after_size_ptr % 2 == 0;
 
-	//If both blocks before and after blockptr are free
-	if(is_alloc_before == 0 && is_alloc_after == 0){
-	//Total size of the allocated block
-	unsigned int total_size = block_size;
-
 	//We need the first free block after blockptr. This is used down below in one
 	//of the edge cases (line 208)
 	int keep_going = 1;
 	char *first_free_block_after;
-	char *current = (char *)block_ptr;
+	char *current = (char *)blockptr;
 	while(keep_going == 1){
 		current = ADD_BYTES(current, *current);
 
@@ -182,10 +177,10 @@ void hl_release(void *heapptr, void *blockptr) {
 		//set the next_free pointer for the free block directly before blockptr
 		//don't need to change the prev_free pointer at all
 
-		char *before_ptr_char = ADD_BYTES(block_ptr, -*before_size_ptr);
+		char *before_ptr_char = ADD_BYTES(blockptr, -*before_size_ptr);
 		free_block_header *before_ptr = (free_block_header *)before_ptr_char;
 		before_ptr->size = total_free_size;
-		before_ptr->next_free = ((free_block_header *)ADD_BYTES(block_ptr, block_size))->next_free;
+		before_ptr->next_free = ((free_block_header *)ADD_BYTES(blockptr, block_size))->next_free;
 	}
 
 
@@ -205,7 +200,7 @@ void hl_release(void *heapptr, void *blockptr) {
 			//
 			if(current == NULL){
 				keep_going_back = 0;
-			 	free_block_header *new_free = (free_block_header *)block_ptr;
+			 	free_block_header *new_free = (free_block_header *)blockptr;
 			 	new_free->prev_free = NULL;
 
 			 	if(is_alloc_after){
@@ -226,14 +221,13 @@ void hl_release(void *heapptr, void *blockptr) {
 			//If we hit a free block
 			else if(*(int *)current % 2 == 0){
 			 	keep_going_back = 0;
-			 	unsigned int free_block_size = *current;
 
 			 	//Set the newly freed block's prev_free to the other free block
-			 	free_block_header *new_free = (free_block_header *)block_ptr;
+			 	free_block_header *new_free = (free_block_header *)blockptr;
 			 	new_free->prev_free = ADD_BYTES(current, -(*current - sizeof(unsigned int)));
 
 			 	//This is the found free block
-			 	free_block_header *found_free = (free_block_header *)ADD_BYTES(current, -(*current - sizeof(unsigned int));
+			 	free_block_header *found_free = (free_block_header *)ADD_BYTES(current, -(*current - sizeof(unsigned int)));
 
 			 	if(is_alloc_after == 1){
 			 		//Set the newly freed block's next_free to other free block's next_free
