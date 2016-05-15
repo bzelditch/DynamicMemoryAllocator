@@ -126,6 +126,124 @@ void hl_release(void *heapptr, void *blockptr) {
 		return;
 	}
 
+	int is_alloc_before, is_alloc_after; //booleans to determine the allocation status
+                                          //of the blocks before and after this block.
+	                                      //1 if allocated, 0 if free
+
+	//Get the size of the allocated block
+	unsigned int block_size = ((block_header*)ADD_BYTES(blockptr, -sizeof(unsigned int)))->size;
+
+    //Point to the footer of the block right before this block
+	unsigned int *before_size_ptr = (unsigned int*)ADD_BYTES(blockptr, -2*sizeof(unsigned int));
+
+    //Should be true if not equivalent to 0 mod 2 and false otherwise
+	is_alloc_before = *(int *)before_size_ptr % 2 == 0;
+
+	//Should point to the header of the next block
+	unsigned int* after_size_ptr = (unsigned int*)ADD_BYTES(blockptr, block_size + sizeof(unsigned int));
+
+	//Same as above
+	is_alloc_after = *(int *)after_size_ptr % 2;
+
+	//Total size of the allocated block
+	unsigned int total_size = block_size + 2*sizeof(block_header);
+
+	//If both blocks before and after blockptr are free
+	if(is_alloc_before == 0 && is_alloc_after == 0){
+
+		//The total size of the newly freed, coalesced block (MAYBE total_size - 1?)
+		unsigned int total_free_size = *before_size_ptr + 2*sizeof(unsigned int) + total_size + 4*sizeof(char *) + *after_size_ptr;
+
+		//set the next_free pointer for the free block directly before blockptr
+		char *before_next_ptr = ADD_BYTES(blockptr, -(2*sizeof(unsigned int) + *before_size_ptr + 2*sizeof(char *)));
+		before_next_ptr = ADD_BYTES(after_size_ptr, sizeof(unsigned int));
+
+		//Change the size header and footer to the total_free_size
+		unsigned int* size_header = (unsigned int *)ADD_BYTES(blockptr, -(3*sizeof(unsigned int) + *before_size_ptr + 2*sizeof(char *)));
+		*size_header = total_free_size;
+		unsigned int* size_footer = (unsigned int *)ADD_BYTES(after_size_ptr, sizeof(unsigned int) + 2*sizeof(char *) + *after_size_ptr);
+		*size_footer = total_free_size;
+	}
+
+
+	if(is_alloc_before){
+     //We need to keep going back in the heap until we hit the first free block
+	//Note: check the NULL case
+
+	int keep_going_back = 1;
+	unsigned int *current = before_size_ptr;
+
+		while(keep_going_back == 1){
+			//Move the current pointer back to the footer of the next block 
+			current = (unsigned int*)ADD_BYTES(current, -(*current + 2*sizeof(unsigned int)));
+
+			//If current == NULL then this newly alloc'd block will be the first free block in the heap.
+			//So new_prev_free = NULL and new_next_free = the address of the first free block AFTER this block
+			//
+			if(current == NULL){
+				char *new_next_free = (char *)blockptr;
+				//COME BACK TO THIS
+
+			 	char *new_prev_free = ADD_BYTES(new_next_free, sizeof(char *));
+			 	new_prev_free = NULL;
+
+			}
+
+			//If we hit a free block
+			if(*(int *)current % 2 == 0){
+			 	keep_going_back = 0;
+			 	unsigned int free_block_size = *current;
+
+			 	//Set the newly freed block's prev_free to the other free block
+			 	char *new_prev_free = ADD_BYTES(blockptr, sizeof(char *));
+			 	new_prev_free = ADD_BYTES(current, -free_block_size); //Maybe this should be different?
+
+			 	//Next_free pointer from the found free block
+			 	char *next_free = ADD_BYTES(current, -(free_block_size + 2*sizeof(char *))); 
+
+			 	//Now set the other free block's next_free to the newly freed block
+			 	//but don't change the other free block's prev_free pointer
+			 	//Should it be *next_free?
+			 	next_free = ADD_BYTES(blockptr, 2*sizeof(char *));
+
+			 	char *new_next_free = (char *)blockptr;
+
+			 	if(is_alloc_after == 1){
+			 		//Set the newly freed block's next_free to other free block's next_free
+			 		new_next_free = next_free; 
+
+			 		//Now need to change the size field in the newly alloc'd block's header and footer
+			 		unsigned int *new_free_block_size_h = (unsigned int*)ADD_BYTES(blockptr, -sizeof(unsigned int));
+			 		*new_free_block_size_h = block_size - 2*sizeof(char *) - 1;
+
+			 		unsigned int *new_free_block_size_f = (unsigned int*)ADD_BYTES(blockptr, block_size);
+			 		*new_free_block_size_f = block_size - 2*sizeof(char *) - 1;
+			 	}
+
+
+			 	unsigned int after_block_size = *after_size_ptr;
+			 	//Set the newly freed block's next_free to the after block's next_free
+			 	new_next_free = ADD_BYTES(after_size_ptr, sizeof(unsigned int));
+
+			 	unsigned int *new_free_block_size_h = (unsigned int*)ADD_BYTES(blockptr, -sizeof(unsigned int));
+			 	*new_free_block_size_h = block_size - 2*sizeof(char *) + 2*sizeof(unsigned int) + 2*sizeof(char *) + after_block_size - 1;
+
+			 	unsigned int *new_free_block_size_f = 
+			 	(unsigned int*)ADD_BYTES(blockptr, block_size + 2*sizeof(unsigned int) + 2*sizeof(char *) + after_block_size);
+			 	*new_free_block_size_f = block_size - 2*sizeof(char *) + 2*sizeof(unsigned int) + 2*sizeof(char *) + after_block_size - 1;
+
+			 }
+
+		}
+	}
+
+	else{
+
+	}
+
+
+
+
 
 }
 
