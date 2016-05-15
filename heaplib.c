@@ -31,9 +31,9 @@ typedef struct block_header {
 int hl_init(void *heapptr, unsigned int heap_size) {
   	heap_header *heap = (heap_header *)heapptr; //set initial pointer to the heap_header
 
-    if((*(int *)heap) % ALIGNMENT != 0){ //if the heap pointer is not aligned properly
+    if((*(int *)&heap) % ALIGNMENT != 0){ //if the heap pointer is not aligned properly
                                          //then align it
-      heap = (heap_header *)((char *)heap + ALIGNMENT - (*(int*)heap) % ALIGNMENT);
+      heap = (heap_header *)((char *)heap + ALIGNMENT - (*(int*)&heap) % ALIGNMENT);
     }
 
     heap->size = heap_size; //set the size of the entire heap
@@ -60,59 +60,60 @@ int hl_init(void *heapptr, unsigned int heap_size) {
  * if the allocator cannot satisfy the request.
  */
 void *hl_alloc(void *heapptr, unsigned int block_size) {
-	//8 byte aligned block size
-  	if(block_size < 0 || block_size < 2*sizeof(block_header)){
+  	//if(block_size < 0 || block_size < 2*sizeof(block_header)){
+	if(block_size < 0){
   		return 0;
   	}
+  	unsigned int total_size = block_size + 2*sizeof(block_header);
+  	if(total_size % ALIGNMENT != 0){
+     	total_size += ALIGNMENT - (total_size % ALIGNMENT);
+    }
+
   	heap_header *head = (heap_header *)heapptr;
   	char *first = head->first_free;
   	free_block_header *header = (free_block_header *)first;
-  	unsigned int total_size = block_size + 2*sizeof(block_header);
+  	//do while loop to see if any free blocks can fit the requested block
   	do{
 		if (header->size >= total_size){
-			//void* back_pointer = (void *)ADD_BYTES(header, 8);
-			//free_block_header *back_header = (free_block_header *)back_pointer;
-			//void* prev = back_header->prev_free;
 			void* prev = header->prev_free;
 			free_block_header *prev_header = (free_block_header *)prev;
-
 			free_block_header *next_header = (free_block_header *)header->next_free;
-			//void* next_back_pointer = next_header->prev_free;
-			//void* next_back_pointer = (void *)ADD_BYTES(next_header, 8);
-			//free_block_header *next_back_header = (free_block_header *)next_back_pointer;
 
   			if (header->size == total_size){
+  				//if sizes match, only need to change pointers of previous and next free blocks
   				next_header->prev_free = header->prev_free;
   				prev_header->next_free = header->next_free;
 			}
 			else{
+				//change free block header
 				void* shifted = (void *)ADD_BYTES(header, total_size);
 				free_block_header *new_header = (free_block_header *)shifted;
 				new_header->size = header->size - total_size;
 				new_header->next_free = header->next_free;
 				new_header->prev_free = header->prev_free;
 
+				//set footer for free block
 				block_header *new_back_header = (block_header *)ADD_BYTES(header, header->size - sizeof(unsigned int));
 				new_back_header->size = header->size - total_size;
 
-				block_header *new_alloc_front_header = (block_header *)header;
-				new_alloc_front_header->size = total_size + 1;
-
-				block_header *new_alloc_back_header = (block_header *)ADD_BYTES(header, total_size - sizeof(unsigned int));
-				new_alloc_back_header->size = total_size + 1;
-
+				//set new pointers for previous and next free blocks
 				next_header->prev_free = shifted;
   				prev_header->next_free = shifted;
 			}
+			//new header for the alloc'd block, taking into account the allocated flag by adding 1
+			block_header *new_alloc_front_header = (block_header *)header;
+			new_alloc_front_header->size = total_size + 1;
+
+			//new footer for the alloc'd block, taking into account the allocated flag by adding 1
+			block_header *new_alloc_back_header = (block_header *)ADD_BYTES(header, total_size - sizeof(unsigned int));
+			new_alloc_back_header->size = total_size + 1;
+
 			return (void *)header;
 		}
   		header = (free_block_header *)header->next_free;  		
   	} while (header != NULL);
- 
-  	return 0;
 
-    //NOTE: Probably need to include an alloc_header in this function
-    //Also, check the alignment
+  	return 0;
 }
 
 /* Releases the block of previously allocated memory pointed to by blockptr.
@@ -128,28 +129,25 @@ void hl_release(void *heapptr, void *blockptr) {
 	                                      //1 if allocated, 0 if free
 
 	//Get the size of the allocated block
-	unsigned int block_size = ((block_header*)ADD_BYTES(blockptr, -sizeof(unsigned int)))->size;
+	unsigned int block_size = ((block_header *)blockptr)->size;
 
     //Point to the footer of the block right before this block
-	unsigned int *before_size_ptr = (unsigned int*)ADD_BYTES(blockptr, -2*sizeof(unsigned int));
+	unsigned int *before_size_ptr = (unsigned int *)ADD_BYTES(blockptr, -sizeof(unsigned int));
 
     //Should be true if not equivalent to 0 mod 2 and false otherwise
-	is_alloc_before = *(int *)before_size_ptr % 2 == 0;
+	is_alloc_before = *(int *)before_size_ptr % 2;
 
 	//Should point to the header of the next block
-	unsigned int* after_size_ptr = (unsigned int*)ADD_BYTES(blockptr, block_size + sizeof(unsigned int));
+	unsigned int* after_size_ptr = (unsigned int*)ADD_BYTES(blockptr, block_size);
 
 	//Same as above
 	is_alloc_after = *(int *)after_size_ptr % 2;
-
-	//Total size of the allocated block
-	unsigned int total_size = block_size + 2*sizeof(block_header);
 
 	//If both blocks before and after blockptr are free
 	if(is_alloc_before == 0 && is_alloc_after == 0){
 
 		//The total size of the newly freed, coalesced block (MAYBE total_size - 1?)
-		unsigned int total_free_size = *before_size_ptr + 2*sizeof(unsigned int) + total_size + 4*sizeof(char *) + *after_size_ptr;
+		unsigned int total_free_size = *before_size_ptr + 2*sizeof(unsigned int) + block_size + 4*sizeof(char *) + *after_size_ptr;
 
 		//set the next_free pointer for the free block directly before blockptr
 		char *before_next_ptr = ADD_BYTES(blockptr, -(2*sizeof(unsigned int) + *before_size_ptr + 2*sizeof(char *)));
@@ -259,7 +257,7 @@ void *hl_resize(void *heapptr, void *blockptr, unsigned int new_block_size) {
  	if(blockptr == 0 || new_alloc == 0){
  		return new_alloc;
  	}
- 	void *copied = memcpy(new_alloc, blockptr, old_block->size);
+ 	void *copied = memcpy(new_alloc, blockptr, old_block->size - 1);
  	hl_release(heapptr, blockptr);
   	return copied;
 }
