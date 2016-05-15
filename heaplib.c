@@ -92,13 +92,13 @@ void *hl_alloc(void *heapptr, unsigned int block_size) {
 				new_header->next_free = header->next_free;
 				new_header->prev_free = header->prev_free;
 
-				block_header *new_back_header = (block_header *)ADD_BYTES(header, header->size - 4);
+				block_header *new_back_header = (block_header *)ADD_BYTES(header, header->size - sizeof(unsigned int));
 				new_back_header->size = header->size - total_size;
 
 				block_header *new_alloc_front_header = (block_header *)header;
 				new_alloc_front_header->size = total_size + 1;
 
-				block_header *new_alloc_back_header = (block_header *)ADD_BYTES(header, total_size - 4);
+				block_header *new_alloc_back_header = (block_header *)ADD_BYTES(header, total_size - sizeof(unsigned int));
 				new_alloc_back_header->size = total_size + 1;
 
 				next_header->prev_free = shifted;

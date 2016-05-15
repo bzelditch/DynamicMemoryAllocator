@@ -1,7 +1,7 @@
 #include <stdlib.h>
-#include <string.h>
 #include <stdio.h>
 #include "heaplib.h"
+#include "string.h"
 
 /* Useful shorhand: casts a pointer to a (char *) before adding */
 #define ADD_BYTES(base_addr, num_bytes) (((char *)(base_addr)) + (num_bytes))
@@ -33,16 +33,15 @@ void print_heap(heap_header_t *heap) {
 
 
 int hl_init(void *heapptr, unsigned int heap_size) {
-
+	if (heap_size < sizeof(heap_header_t)){
+		return 0;
+	}
 	heap_header_t *heap = (heap_header_t *)heapptr;
 
-	//cast to int* and then use & to get: &(*int)
+	if((*(int *)&heap) % (ALIGNMENT) != 0){ //if the heapptr is not aligned properly, align it
+		heap = (heap_header_t *)((char *)heap + ALIGNMENT - (*(int*)&heap) % ALIGNMENT);
+    }
 
-	if((*(int *)heap) % (ALIGNMENT) != 0){ //if the heapptr is not aligned properly, align it
-
-		heap = (heap_header_t *)((char *)heap + ALIGNMENT - (*(int*)heap) % ALIGNMENT);
-	}
-	
 	heap->size = heap_size;
 	heap->next_free = ADD_BYTES(heap, sizeof(heap_header_t));
 	heap->bytes_free = heap_size - sizeof(heap_header_t);
@@ -51,36 +50,29 @@ int hl_init(void *heapptr, unsigned int heap_size) {
         print_heap(heap);
     #endif
 
-    if(heap->bytes_free > 0){
-    	return 1;
-    }
-
-   	
-	return 0; // Success!
+	return 1;
 
 }
 
 void *hl_alloc(void *heapptr, unsigned int block_size) {
-
 	heap_header_t *heap = (heap_header_t *)heapptr;
-	void *blockptr = heap->next_free;
-
-	if(*(int*)blockptr % ALIGNMENT != 0){
-		blockptr = (char*)blockptr + ALIGNMENT - (ALIGNMENT - (*(int*)blockptr % ALIGNMENT)); 
-	}
-
-	if((int)block_size % ALIGNMENT != 0){
-		block_size += (unsigned int)(ALIGNMENT - (ALIGNMENT - ((int)block_size % ALIGNMENT)));
-	}
-	
-	heap->next_free = heap->next_free + block_size;
-	heap->bytes_free = heap->bytes_free - block_size;
-
 	if (heap->bytes_free < block_size){
 		return 0;
 	}
+	void *blockptr = heap->next_free;
+
+	if(*(int*)&blockptr % ALIGNMENT != 0){
+		//not sure why alignment is added then subtracted
+     	blockptr = (char*)blockptr + ALIGNMENT - (ALIGNMENT - (*(int*)&blockptr % ALIGNMENT)); 
+    }
+    if((int)block_size % ALIGNMENT != 0){
+     	block_size += (unsigned int)(ALIGNMENT - (ALIGNMENT - ((int)block_size % ALIGNMENT)));
+    }
 	
-	return blockptr; // Success!
+	heap->next_free = heap->next_free + block_size;
+	heap->bytes_free = heap->bytes_free - block_size;
+	
+	return blockptr;
 	
 }
 
@@ -89,16 +81,9 @@ void hl_release(void *heapptr, void *blockptr) {
 }
 
 void *hl_resize(void *heapptr, void *blockptr, unsigned int new_block_size) {
-
 	void* newblockptr =  hl_alloc(heapptr, new_block_size);
-
-	if(*(int *)blockptr != *(int *)newblockptr){
-		newblockptr = memcpy(newblockptr, blockptr, *(int *)newblockptr - *(int *)blockptr);
-
-	}
-
+    if((*(int *)(&blockptr) != *(int *)&newblockptr) && (newblockptr != 0)){
+        newblockptr = memcpy(newblockptr, blockptr, *(int *)&newblockptr - *(int *)&blockptr);
+    }
 	return newblockptr;
-
-
 }
-
