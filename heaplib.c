@@ -140,7 +140,7 @@ void hl_release(void *heapptr, void *blockptr) {
 		return;
 	}
 
-	int is_alloc_before, is_alloc_after; //booleans to determine the allocation status
+	int is_alloc_before, is_alloc_after = 1; //booleans to determine the allocation status
                                           //of the blocks before and after this block.
 	                                      //1 if allocated, 0 if free
 
@@ -151,13 +151,17 @@ void hl_release(void *heapptr, void *blockptr) {
 	unsigned int *before_size_ptr = (unsigned int *)ADD_BYTES(blockptr, -sizeof(unsigned int));
 
     //Should be true if not equivalent to 0 mod 2 and false otherwise
-	is_alloc_before = *(int *)before_size_ptr % 2 == 0;
+	if(before_size_ptr == NULL || *(int *)before_size_ptr % 2 == 0){
+		is_alloc_before = 0;
+	}
 
 	//Should point to the header of the next block
 	unsigned int* after_size_ptr = (unsigned int*)ADD_BYTES(blockptr, block_size);
 
 	//Same as above
-	is_alloc_after = *(int *)after_size_ptr % 2 == 0;
+	if(after_size_ptr == NULL || *(int *)after_size_ptr % 2 == 0){
+		is_alloc_after = 0;
+	}
 
 	//We need the first free block after blockptr. This is used down below in one
 	//of the edge cases (line 208)
@@ -200,7 +204,7 @@ void hl_release(void *heapptr, void *blockptr) {
 	}
 
 
-	if(is_alloc_before){
+	if(is_alloc_before == 1){
      //We need to keep going back in the heap until we hit the first free block
 	//Note: check the NULL case
 
@@ -259,13 +263,13 @@ void hl_release(void *heapptr, void *blockptr) {
 			 	}
 
 			 	else{
-			 	unsigned int after_block_size = *after_size_ptr;
-			 	unsigned int total_free_size = block_size + after_block_size - 1;
+			 		unsigned int after_block_size = *after_size_ptr;
+			 		unsigned int total_free_size = block_size + after_block_size - 1;
 
-			 	free_block_header *after_block = (free_block_header *)after_size_ptr;
-			 	new_free->next_free = after_block->next_free;
-			 	new_free->size = total_free_size;
-			 	found_free->next_free = (char *)new_free;
+			 		free_block_header *after_block = (free_block_header *)after_size_ptr;
+			 		new_free->next_free = after_block->next_free;
+			 		new_free->size = total_free_size;
+			 		found_free->next_free = (char *)new_free;
 			 	}
 			 }
 
