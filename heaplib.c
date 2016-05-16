@@ -203,6 +203,10 @@ void hl_release(void *heapptr, void *blockptr) {
 			 	free_block_header *new_free = (free_block_header *)blockptr;
 			 	new_free->prev_free = NULL;
 
+			 	//Update the first_free field of the heapptr
+			 	heap_header *heap = (heap_header *)heapptr;
+			 	heap->first_free = (char *)blockptr;
+
 			 	if(is_alloc_after){
 			 	//Need the address of the first free block AFTER blockptr
 			 		new_free->next_free = first_free_block_after;
