@@ -150,8 +150,15 @@ void hl_release(void *heapptr, void *blockptr) {
     //Point to the footer of the block right before this block
 	unsigned int *before_size_ptr = (unsigned int *)ADD_BYTES(blockptr, -sizeof(unsigned int));
 
+	//Remember that there is a heap_header at the beginning of the heap, so we need to
+	//take that into account when checking if blockptr is the first block in the heap
+	int is_blockptr_first = 0;
+	if(ADD_BYTES(blockptr, -(sizeof(heap_header) + 1)) == NULL){
+		is_blockptr_first = 1;
+	}
+
     //Should be true if not equivalent to 0 mod 2 and false otherwise
-	if(before_size_ptr == NULL || *(int *)before_size_ptr % 2 == 0){
+	if(before_size_ptr == NULL || is_blockptr_first == 1 || *(int *)before_size_ptr % 2 == 0){
 		is_alloc_before = 0;
 	}
 
@@ -188,19 +195,36 @@ void hl_release(void *heapptr, void *blockptr) {
 
 	}
 
-	//If both blocks before and after blockptr are free
+	//If both blocks before and after blockptr are free or one of the before/after pointers is null
 	if(is_alloc_before == 0 && is_alloc_after == 0){
 
-		//The total size of the newly freed, coalesced block
-		unsigned int total_free_size = *before_size_ptr + block_size + *after_size_ptr - 1;
+		//If there actually are free blocks on both sides of blockptr
+		if(before_size_ptr != NULL && after_size_ptr != NULL){
+			unsigned int total_free_size = *before_size_ptr + block_size + *after_size_ptr - 1;
+			char *before_ptr_char = ADD_BYTES(blockptr, -*before_size_ptr);
+			free_block_header *before_ptr = (free_block_header *)before_ptr_char;
+			before_ptr->size = total_free_size;
+			before_ptr->next_free = ((free_block_header *)ADD_BYTES(blockptr, block_size))->next_free;
+		}
 
-		//set the next_free pointer for the free block directly before blockptr
-		//don't need to change the prev_free pointer at all
+		//The case where the entire heap is one big alloc'd block
+		else if((before_size_ptr == NULL || is_blockptr_first == 1) && after_size_ptr == NULL){
+			free_block_header *new_free = (free_block_header *)blockptr;
+			new_free->prev_free = NULL;
+			new_free->next_free = NULL;
+			new_free->size = block_size;
 
-		char *before_ptr_char = ADD_BYTES(blockptr, -*before_size_ptr);
-		free_block_header *before_ptr = (free_block_header *)before_ptr_char;
-		before_ptr->size = total_free_size;
-		before_ptr->next_free = ((free_block_header *)ADD_BYTES(blockptr, block_size))->next_free;
+		}
+
+		//If blockptr is the first block in the heap and there's a free block after it
+		else if(before_size_ptr == NULL || is_blockptr_first == 1){
+
+		}
+
+		//If blockptr is the last block in the heap and there's a free block before it
+		else{
+
+		}
 	}
 
 
