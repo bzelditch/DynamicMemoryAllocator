@@ -6,7 +6,7 @@
 #define ADD_BYTES(base_addr, num_bytes) (((char *)(base_addr)) + (num_bytes))
 
 /*
- * Include a description of your approach here.
+ * We have a heap header that holds the size of the heap and 
  *
  */
 
@@ -61,6 +61,7 @@ int hl_init(void *heapptr, unsigned int heap_size) {
  */
 void *hl_alloc(void *heapptr, unsigned int block_size) {
   	//if(block_size < 0 || block_size < 2*sizeof(block_header)){
+	
 	if(block_size <= 0){
   		return 0;
   	}
@@ -68,8 +69,10 @@ void *hl_alloc(void *heapptr, unsigned int block_size) {
   	if(total_size % ALIGNMENT != 0){
      	total_size += ALIGNMENT - (total_size % ALIGNMENT);
     }
-
-  	heap_header *head = (heap_header *)heapptr;
+    heap_header *head = (heap_header *)heapptr;
+    if (total_size > head->size){
+    	return 0;
+    }
   	char *first = head->first_free;
   	free_block_header *header = (free_block_header *)first;
   	char *f_free = NULL;
@@ -143,7 +146,6 @@ void hl_release(void *heapptr, void *blockptr) {
 	int is_alloc_before, is_alloc_after = 1; //booleans to determine the allocation status
                                           //of the blocks before and after this block.
 	                                      //1 if allocated, 0 if free
-
 	//Get the size of the allocated block
 	unsigned int block_size = ((block_header *)blockptr)->size - 1;
 
@@ -239,13 +241,12 @@ void hl_release(void *heapptr, void *blockptr) {
 		}
 	}
 
-
 	if(is_alloc_before == 1){
      //We need to keep going back in the heap until we hit the first free block
 	//Note: check the NULL case
 
-	int keep_going_back = 1;
-	unsigned int *current = before_size_ptr;
+		int keep_going_back = 1;
+		unsigned int *current = before_size_ptr;
 
 		while(keep_going_back == 1){
 			//Move the current pointer back to the footer of the next block 

@@ -11,33 +11,43 @@
 // don't want bloated meta data to be the problem
 #define DECENT_HEAP_SIZE 256
 #define SMALL_HEAP_SIZE 32
+#define ARRAY_LEN 16
 
 int num_tests = 0;
 
+
+
 int resize_copies_values() {
-	char heap[DECENT_HEAP_SIZE]; 
-	char *letters, *new_letters;
-	
+
+    int reference_nums[ARRAY_LEN] = { 15, 51, 76, 90, 101, 199, 23, 98, 2, 6, 23, 98, 2, 6, 34, 23 };
+    char heap[DECENT_HEAP_SIZE]; 
+    int *small_array, *bigger_array;
+    int small_len = 6, bigger_len = 10;
+    int i;
+
 	num_tests++; // begin each test by incrementing this counter
+	printf("%d) Resize copies values?", num_tests); 
 
 	hl_init(heap, DECENT_HEAP_SIZE);
-	letters = (char *) hl_alloc(heap, 6 * sizeof(char));
-	letters[0] = 'h';
-	letters[1] = 'e';
-	letters[2] = 'l';
-	letters[3] = 'l';
-	letters[4] = 'o';
-	letters[5] = '\0';
 	
-	new_letters = hl_resize(heap, letters, 20 * sizeof(char));
-	printf("%d) Resize copies values?", num_tests); 
-	if (!strcmp(letters, new_letters)) {
-		printf("\t\t\tPASS\n");
-		return SUCCESS;
+	small_array = hl_alloc(heap, small_len * sizeof(int));
+	
+	for (i = 0; i < small_len; i++) {
+	   small_array[i] = reference_nums[i];
 	}
 	
-	printf("\t\t\tFAIL\n"); 
-	return FAIL;
+	bigger_array = hl_resize(heap, small_array, bigger_len * sizeof(int));
+	
+	if (bigger_array) {
+		for (i = 0; i < small_len; i++) {
+			if(bigger_array[i] != reference_nums[i]) {
+				printf("\t\t\tFAIL\n"); 
+				return FAIL;
+			}
+		}
+	}
+	printf("\t\t\tPASS\n");
+	return SUCCESS;  	
 }
 
 /* Note: this test may or may not be robust. Take a look and determine
@@ -72,6 +82,28 @@ int alloc_ptr_aligned() {
 	}
 	
 	printf("\tFAIL\n"); 
+	return FAIL;
+}
+
+/**
+ * Test for failures in incorrect alloc call
+ */
+int alloc_basic() {
+	char array[DECENT_HEAP_SIZE]; 
+	void *block;
+	bool aligned_f = false;
+	num_tests++; // begin each test by incrementing this counter
+	hl_init(&array, DECENT_HEAP_SIZE - 1);
+	block = hl_alloc(&array, 150);
+	aligned_f = block != 0;
+
+	printf("%d) hl_alloc can alloc a basic block?", num_tests); 
+	if (aligned_f) {
+		printf("\t\tPASS\n");
+		return SUCCESS;
+	}
+	
+	printf("\t\tFAIL\n"); 
 	return FAIL;
 }
 
@@ -143,13 +175,13 @@ int resize_failure() {
 }
 
 int heap_overflow() {
-	char heap[SMALL_HEAP_SIZE]; 
+	char heap[DECENT_HEAP_SIZE]; 
 	char *letters; 
 	void *new_letters;
 
 	num_tests++; // begin each test by incrementing this counter
 
-	hl_init(heap, SMALL_HEAP_SIZE);
+	hl_init(heap, DECENT_HEAP_SIZE);
 	letters = (char *) hl_alloc(heap, 6 * sizeof(char));
 
 	letters[0] = 'h';
@@ -159,8 +191,7 @@ int heap_overflow() {
 	letters[4] = 'o';
 	letters[5] = '\0';
 
-	new_letters = hl_alloc(heap, 28 * sizeof(char));
-
+	new_letters = hl_alloc(heap, 250 * sizeof(char));
 	printf("%d) Heap doesn't overflow with alloc call?", num_tests); 
 	if (new_letters == 0) {
 		printf("\tPASS\n");
@@ -172,14 +203,14 @@ int heap_overflow() {
 }
 
 int release_test() {
-	char heap[SMALL_HEAP_SIZE]; 
+	char heap[DECENT_HEAP_SIZE]; 
 	char *letters; 
 	void *new_letters;
 
 	num_tests++; // begin each test by incrementing this counter
 
-	hl_init(heap, SMALL_HEAP_SIZE);
-	letters = (char *) hl_alloc(heap, 6 * sizeof(char));
+	hl_init(heap, DECENT_HEAP_SIZE);
+	letters = (char *) hl_alloc(heap, 150 * sizeof(char));
 
 	letters[0] = 'h';
 	letters[1] = 'e';
@@ -189,7 +220,7 @@ int release_test() {
 	letters[5] = '\0';
 
 	hl_release(heap, letters);
-	new_letters = hl_alloc(heap, 12 * sizeof(char));
+	new_letters = hl_alloc(heap, 150 * sizeof(char));
 
 	printf("%d) Heap correctly allocates after release?", num_tests); 
 	if (new_letters != 0) {
@@ -207,9 +238,10 @@ int main() {
 	
 	printf("Beginning Correctness Test!\n---------------------------\n");
 	
-	num_passes += resize_copies_values();
+	num_passes += resize_copies_values();//fails
 	num_passes += alloc_ptr_aligned();
 	num_passes += alloc_failure();
+	num_passes += alloc_basic();
 	num_passes += init_failure();
 	num_passes += resize_failure();
 	num_passes += heap_overflow();
