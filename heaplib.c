@@ -328,6 +328,9 @@ void hl_release(void *heapptr, void *blockptr) {
 			new_free->size = block_size;
 			new_free->prev_free = NULL;
 			new_free->next_free = first_free_block_after;
+
+			heap_header *heap = (heap_header *)heapptr;
+			heap->first_free = (char *)blockptr;
 		}
 
 
