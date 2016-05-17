@@ -200,7 +200,7 @@ void hl_release(void *heapptr, void *blockptr) {
 
 		//If there actually are free blocks on both sides of blockptr
 		if((before_size_ptr != NULL && is_blockptr_first == 0) && after_size_ptr != NULL){
-			unsigned int total_free_size = *before_size_ptr + block_size + *after_size_ptr - 1;
+			unsigned int total_free_size = *before_size_ptr + block_size + *after_size_ptr;
 			char *before_ptr_char = ADD_BYTES(blockptr, -*before_size_ptr);
 			free_block_header *before_ptr = (free_block_header *)before_ptr_char;
 			before_ptr->size = total_free_size;
@@ -295,12 +295,12 @@ void hl_release(void *heapptr, void *blockptr) {
 			 		found_free->next_free = (char *)new_free;
 
 			 		//Now need to change the size field in the newly freed block
-			 		new_free->size = block_size - 1;
+			 		new_free->size = block_size;
 			 	}
 
 			 	else{
 			 		unsigned int after_block_size = *after_size_ptr;
-			 		unsigned int total_free_size = block_size + after_block_size - 1;
+			 		unsigned int total_free_size = block_size + after_block_size;
 
 			 		free_block_header *after_block = (free_block_header *)after_size_ptr;
 			 		new_free->next_free = after_block->next_free;
@@ -316,11 +316,21 @@ void hl_release(void *heapptr, void *blockptr) {
 	//Don't need to change pointers. Just need to change size
 	else{
 
+		if(is_blockptr_first == 0){
 		//Total size of the newly freed, coalesced block
-		unsigned int total_free_size = block_size + *before_size_ptr - 1;
+			unsigned int total_free_size = block_size + *before_size_ptr - 1;
+			free_block_header *before_block = (free_block_header *)ADD_BYTES(blockptr, -*before_size_ptr);
+			before_block->size = total_free_size;
+		}
 
-		free_block_header *before_block = (free_block_header *)ADD_BYTES(blockptr, -*before_size_ptr);
-		before_block->size = total_free_size;
+		else{
+			free_block_header *new_free = (free_block_header *)blockptr;
+			new_free->size = block_size;
+			new_free->prev_free = NULL;
+			new_free->next_free = first_free_block_after;
+		}
+
+
 	}
 }
 
